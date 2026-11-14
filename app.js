@@ -25,7 +25,9 @@
     $('#password').value='';$('#dashboard').hidden=true;$('#login-view').hidden=false;$('#logout').hidden=true;$('#login-button').disabled=false;wipe();tell(message);
   }
   $('#logout').onclick=()=>stop();
-  function subscribeTopics(p){const out=[`${C.base(p)}/raw`];for(const d of p.devices)for(const leaf of ['state','presence','config/+','history/+','ack/+','cmd/#'])out.push(C.topic(p,d.id,leaf));return out}
+  // One authorized device subtree covers state/config/history/receipts/commands.
+  // Two devices use three filters; even the supported maximum of eight uses nine.
+  function subscribeTopics(p){return [`${C.base(p)}/raw`,...p.devices.map(d=>C.topic(p,d.id,'#'))]}
   $('#login-form').onsubmit=e=>{
     e.preventDefault();if(!stopped)return;
     try{
