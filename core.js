@@ -26,10 +26,10 @@
     const age=now-Number(state.reported_at||0),wake=Number(state.next_wake_at||0);
     if(state.planned_sleep&&wake>0){if(now<=wake+120)return {label:'预计深睡',tone:'sleep',detail:`计划唤醒 ${date(wake)}`};return {label:'唤醒超时',tone:'warn',detail:'未按计划上报，状态未知'}}
     if(presence==='offline'||(presence&&typeof presence==='object'&&presence.online===false))return {label:'连接中断',tone:'warn',detail:'设备遗嘱消息，具体原因待补报'};
-    if(!state.reported_at||age>90||age< -300)return {label:'状态未知',tone:'warn',detail:'近期未收到有效状态上报'};
+    if(!Number.isFinite(age)||!state.reported_at||age>150||age< -300)return {label:'状态未知',tone:'warn',detail:'近期未收到有效状态上报'};
     return {label:'在线',tone:'online',detail:`最近上报 ${date(state.reported_at)}`};
   }
-  function date(epoch){return epoch?new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(epoch*1000)):'时间未知'}
+  function date(epoch){const d=new Date(epoch*1000);return Number.isFinite(epoch)&&epoch>0&&Number.isFinite(d.getTime())?new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d):'时间未知'}
   function countdown(epoch,now=Math.floor(Date.now()/1000)){if(!epoch)return '尚未安排';let s=Math.max(0,Math.ceil(epoch-now));return `${Math.floor(s/3600)}小时 ${Math.floor(s%3600/60)}分 ${s%60}秒`}
   function command(p,d,action,patch,revision,state,now=Math.floor(Date.now()/1000),id){
     if(!['config','restart',...(d.role==='master'?['run','battery-full']:[])].includes(action))throw Error('当前设备不支持此操作');

@@ -66,7 +66,9 @@
       if(leaf.startsWith('cmd/')){let id=leaf.split('/')[2];if(!p){pending.delete(d.id+'/'+id);renderCommands();return}try{value=JSON.parse(p);if(value.id!==id||value.device_id!==d.id)return;pending.set(d.id+'/'+id,{...value,device:d.id,state:'pending'});renderCommands()}catch{}return}
       if(leaf==='presence'){try{d.presence=JSON.parse(p)}catch{d.presence=p}renderDevices();return}
       try{value=JSON.parse(p)}catch{return}
+      if(!value||typeof value!=='object'||Array.isArray(value))return;
       if(leaf==='state'&&value.v===1&&value.device_id===d.id){d.state=value;renderDevices()}
+      else if(leaf==='diagnostics'&&value.v===1&&value.device_id===d.id){d.diagnostics=value;renderDevices()}
       else if(/^config\/[01]$/.test(leaf)&&value.v===1&&value.device_id===d.id&&Number.isInteger(value.revision)){d.configs.set(Number(leaf.at(-1)),value);if(selected===d.id)loadConfig(false)}
       else if(/^history\/[0-3]$/.test(leaf)&&Array.isArray(value.items)){d.hist.set(leaf,value.items.slice(0,3));renderHistory()}
       else if(/^ack\/(?:[0-7]|rejected)$/.test(leaf)&&Array.isArray(value.items)){d.acks.set(leaf,value.items.slice(0,2));renderCommands()}
@@ -78,6 +80,7 @@
     $('#devices').replaceChildren();for(const d of devices.values()){
       const s=d.state||{},v=C.view(d.state,d.presence,undefined,connected),card=el('article',undefined,'card device');const head=el('div',undefined,'device-head'),name=el('div');name.append(el('div',d.role==='master'?'MASTER · 主模块':'SLAVE · 从模块','eyebrow'),el('h2',d.label),el('div',d.id,'device-code'));head.append(name,el('span',v.label,'pill '+v.tone));card.append(head,el('div',s.rolling||'— — — —','rolling'),el('div','滚动码 · '+(s.changed_at?C.date(s.changed_at)+' 变化':'尚无有效变化时间'),'fine'));
       const metrics=el('div',undefined,'metrics');metric(metrics,'当前连接',v.detail);metric(metrics,'下次工作',d.role==='master'?C.countdown(s.next_window_at):'持续在线 · 实时接收');metric(metrics,'无线信号',d.role==='master'?s.cell_rssi!=null?s.cell_rssi+' dBm':'4G 信号未知':s.wifi_rssi!=null?s.wifi_rssi+' dBm':'WiFi 未连接');metric(metrics,'MQTT / 网络',d.state?(s.mqtt?'MQTT 已连接':'MQTT 未连接')+' · '+(d.role==='master'?(s.cell_registered?'4G 已注网':'4G 未注网'):(s.wifi?'WiFi 已连接':'WiFi 未连接')):'尚未上报');metric(metrics,'目标 BLE 信号',s.ble_rssi!=null?s.ble_rssi+' dBm':'尚未采集');metric(metrics,'电量 / 供电',s.battery_est_pct!=null?s.battery_est_pct+'%（估算）':d.role==='slave'?'外接电源':'尚未启用估算');metric(metrics,'蓝牙 / 运行模式',(s.ble_active?'工作中':'当前未工作')+' · '+(s.mode==='fixed'?'固定广播':d.role==='master'?'采集':'跟随主端'));metric(metrics,'数据采集时间',C.date(s.observed_at));metric(metrics,'最近执行',s.result_at?(s.result_ok?'成功':'失败')+' · '+(s.result_reason||''):'尚无结果');card.append(metrics);
+      if(d.diagnostics){const t=d.diagnostics;metric(metrics,'固件 / 配置',(t.firmware||'未知')+' · '+(t.config_status||'未知'));if(d.role==='master')metric(metrics,'SIM / 模组',(t.sim||'未检查')+' · '+(t.modem_status||'未知'));card.append(el('p','诊断更新 '+C.date(t.reported_at),'fine'))}
       if(s.shutdown_fault)card.append(el('p','模组关机未确认，物理电源状态未知。','fine'));
       const actions=el('div',undefined,'actions');for(const a of d.role==='master'?['run','restart','battery-full']:['restart']){const b=el('button',labels[a],'quiet');b.type='button';b.disabled=!connected;b.onclick=()=>send(d,a);actions.append(b)}card.append(actions);$('#devices').append(card);
     }
